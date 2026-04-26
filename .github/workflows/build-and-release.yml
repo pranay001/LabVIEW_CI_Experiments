@@ -1,0 +1,56 @@
+name: Build and Release LabVIEW Calculator
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # The build spec outputs to ../builds/ relative to the project file.
+      # We mount the project into /workspace/src so that ../builds resolves
+      # to /workspace/builds, which we map to a known host path.
+      - name: Create build output directory
+        run: mkdir -p /tmp/lv-builds
+
+      - name: Build LabVIEW project
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/workspace/src" \
+            -v "/tmp/lv-builds:/workspace/builds" \
+            -w /workspace/src \
+            nationalinstruments/labview:2026q1-linux \
+            LabVIEWCLI \
+              -OperationName ExecuteBuildSpec \
+              -ProjectPath /workspace/src/Calculator.lvproj \
+              -BuildSpecName Calculator
+
+      - name: Copy artifact into workspace
+        run: |
+          mkdir -p "${{ github.workspace }}/builds"
+          cp /tmp/lv-builds/Calculator.exe "${{ github.workspace }}/builds/Calculator.exe"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Calculator-${{ github.run_number }}
+          path: builds/Calculator.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Build #${{ github.run_number }}"
+          body: |
+            Automated release from commit ${{ github.sha }}
+          files: builds/Calculator.exe
+          generate_release_notes: true
