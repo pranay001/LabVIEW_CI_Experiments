@@ -10,7 +10,7 @@ on:
       - main
 
 # Cancel any in-progress run for the same PR when a new
-# commit is pushed — avoids queuing stale compile jobs.
+# commit is pushed - avoids queuing stale compile jobs.
 concurrency:
   group: masscompile-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -36,7 +36,7 @@ jobs:
       # STEP 2: Create log output directory
       # ────────────────────────────────────────────────────────
       - name: Create log directory
-        shell: powershell
+        shell: pwsh
         run: |
           $logDir = "${{ github.workspace }}\logs"
           if (-not (Test-Path $logDir)) {
@@ -46,12 +46,12 @@ jobs:
 
       # ────────────────────────────────────────────────────────
       # STEP 3: Run MassCompile
-      # -LabVIEWPath is omitted — on Windows the CLI connects
+      # -LabVIEWPath is omitted - on Windows the CLI connects
       # to the most recently started LabVIEW instance automatically.
-      # -PortNumber is omitted — uses the default port 3363.
+      # -PortNumber is omitted - uses the default port 3363.
       # ────────────────────────────────────────────────────────
       - name: MassCompile LabVIEW VIs
-        shell: powershell
+        shell: pwsh
         run: |
           $cli     = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
           $logFile = "${{ github.workspace }}\logs\masscompile.log"
@@ -87,12 +87,12 @@ jobs:
       # ────────────────────────────────────────────────────────
       - name: Annotate PR with compile errors
         if: failure()
-        shell: powershell
+        shell: pwsh
         run: |
           $logFile = "${{ github.workspace }}\logs\masscompile.log"
 
           if (-not (Test-Path $logFile)) {
-            Write-Host "No log file found — skipping annotation."
+            Write-Host "No log file found - skipping annotation."
             exit 0
           }
 
@@ -113,16 +113,16 @@ jobs:
           }
 
       # ────────────────────────────────────────────────────────
-      # STEP 5: Close LabVIEW — always runs, even on failure.
+      # STEP 5: Close LabVIEW - always runs, even on failure.
       # Prevents orphaned LabVIEW processes on the runner.
       # ────────────────────────────────────────────────────────
       - name: Close LabVIEW
         if: always()
-        shell: powershell
+        shell: pwsh
         run: |
           $cli = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
           & $cli -OperationName CloseLabVIEW
-          # Do not check exit code — LabVIEW may not have been
+          # Do not check exit code - LabVIEW may not have been
           # running if MassCompile failed early.
           Write-Host "LabVIEW close attempted."
 
