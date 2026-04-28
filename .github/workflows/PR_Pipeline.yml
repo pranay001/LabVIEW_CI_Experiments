@@ -1,9 +1,7 @@
 name: LabVIEW Mass Compile
 
-# ──────────────────────────────────────────────────────────────
 # Trigger: runs on every PR raised targeting the main branch.
 # Also runs when new commits are pushed to an open PR.
-# ──────────────────────────────────────────────────────────────
 on:
   pull_request:
     branches:
@@ -22,21 +20,20 @@ jobs:
 
     steps:
 
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       # STEP 1: Checkout the PR branch code
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
-          # Check out the head of the PR branch (not the merge commit)
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       # STEP 2: Create log output directory
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       - name: Create log directory
-        shell: pwsh
+        shell: powershell
         run: |
           $logDir = "${{ github.workspace }}\logs"
           if (-not (Test-Path $logDir)) {
@@ -44,14 +41,14 @@ jobs:
           }
           Write-Host "Log directory ready: $logDir"
 
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       # STEP 3: Run MassCompile
       # -LabVIEWPath is omitted - on Windows the CLI connects
       # to the most recently started LabVIEW instance automatically.
       # -PortNumber is omitted - uses the default port 3363.
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       - name: MassCompile LabVIEW VIs
-        shell: pwsh
+        shell: powershell
         run: |
           $cli     = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
           $logFile = "${{ github.workspace }}\logs\masscompile.log"
@@ -80,14 +77,14 @@ jobs:
 
           Write-Host "MassCompile completed successfully."
 
-      # ────────────────────────────────────────────────────────
-      # STEP 4: Parse log and report errors as annotations
-      # Any line containing "error" or "failed" is surfaced
-      # directly in the PR Files Changed view.
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
+      # STEP 4: Parse log and report errors as annotations.
+      # Runs only on failure - surfaces Bad VI lines directly
+      # in the PR Checks tab.
+      # --------------------------------------------------------
       - name: Annotate PR with compile errors
         if: failure()
-        shell: pwsh
+        shell: powershell
         run: |
           $logFile = "${{ github.workspace }}\logs\masscompile.log"
 
@@ -98,13 +95,12 @@ jobs:
 
           $lines = Get-Content $logFile
           $issues = $lines | Where-Object {
-            $_ -match "(?i)(error|failed|cannot|broken|missing)"
+            $_ -match "(?i)(error|failed|cannot|broken|missing|Bad VI)"
           }
 
           if ($issues) {
             Write-Host "::group::MassCompile Issues Found"
             foreach ($issue in $issues) {
-              # Emit as GitHub Actions error annotation
               Write-Host "::error::$issue"
             }
             Write-Host "::endgroup::"
@@ -112,24 +108,22 @@ jobs:
             Write-Host "No specific error lines found in log."
           }
 
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       # STEP 5: Close LabVIEW - always runs, even on failure.
       # Prevents orphaned LabVIEW processes on the runner.
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       - name: Close LabVIEW
         if: always()
-        shell: pwsh
+        shell: powershell
         run: |
           $cli = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
           & $cli -OperationName CloseLabVIEW
-          # Do not check exit code - LabVIEW may not have been
-          # running if MassCompile failed early.
           Write-Host "LabVIEW close attempted."
 
-      # ────────────────────────────────────────────────────────
+      # --------------------------------------------------------
       # STEP 6: Upload MassCompile + CLI logs as PR artifact.
-      # Available under Actions → your run → Artifacts.
-      # ────────────────────────────────────────────────────────
+      # Available under Actions > your run > Artifacts.
+      # --------------------------------------------------------
       - name: Upload compile logs
         if: always()
         uses: actions/upload-artifact@v4
