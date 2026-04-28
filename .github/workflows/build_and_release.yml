@@ -1,0 +1,163 @@
+name: LabVIEW Build and Release
+
+# Trigger: runs on every commit or merge to main branch.
+on:
+  push:
+    branches:
+      - main
+
+# Required to create a GitHub Release.
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build LabVIEW EXE and Release
+    runs-on: self-hosted   # Windows PC with LabVIEW installed
+
+    steps:
+
+      # --------------------------------------------------------
+      # STEP 1: Checkout main branch code
+      # --------------------------------------------------------
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --------------------------------------------------------
+      # STEP 2: Create log and build output directories
+      # --------------------------------------------------------
+      - name: Create directories
+        shell: powershell
+        run: |
+          $dirs = @(
+            "${{ github.workspace }}\logs",
+            "${{ github.workspace }}\builds"
+          )
+          foreach ($dir in $dirs) {
+            if (-not (Test-Path $dir)) {
+              New-Item -ItemType Directory -Path $dir | Out-Null
+            }
+          }
+          Write-Host "Directories ready."
+
+      # --------------------------------------------------------
+      # STEP 3: Generate release version tag
+      # Format: v<date>-<short SHA>  e.g. v2026.04.28-a1b2c3d
+      # --------------------------------------------------------
+      - name: Generate version tag
+        id: version
+        shell: powershell
+        run: |
+          $date = Get-Date -Format "yyyy.MM.dd"
+          $sha  = "${{ github.sha }}".Substring(0, 7)
+          $tag  = "v$date-$sha"
+          Write-Host "Release tag: $tag"
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+
+      # --------------------------------------------------------
+      # STEP 4: Build LabVIEW EXE using ExecuteBuildSpec
+      # -LabVIEWPath is omitted - Windows auto-detects LabVIEW.
+      # -PortNumber is omitted - uses the default port 3363.
+      # --------------------------------------------------------
+      - name: Build LabVIEW EXE
+        shell: powershell
+        run: |
+          $cli           = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
+          $projectPath   = "${{ github.workspace }}\Calculator.lvproj"
+          $buildSpecName = "Calculator"
+          $logFile       = "${{ github.workspace }}\logs\build.log"
+
+          Write-Host "Starting ExecuteBuildSpec..."
+          Write-Host "  Project    : $projectPath"
+          Write-Host "  Build Spec : $buildSpecName"
+          Write-Host "  Log file   : $logFile"
+
+          & $cli `
+            -OperationName ExecuteBuildSpec `
+            -ProjectPath   $projectPath `
+            -BuildSpecName $buildSpecName `
+            -LogFilePath   $logFile `
+            -LogToConsole  true `
+            -Verbosity     Detailed
+
+          $exitCode = $LASTEXITCODE
+          Write-Host "ExecuteBuildSpec exit code: $exitCode"
+
+          if ($exitCode -ne 0) {
+            Write-Error "Build failed with exit code $exitCode"
+            exit $exitCode
+          }
+
+          Write-Host "Build completed successfully."
+
+      # --------------------------------------------------------
+      # STEP 5: Verify Calculator.exe exists in \builds
+      # --------------------------------------------------------
+      - name: Verify EXE output
+        shell: powershell
+        run: |
+          $exePath = Get-ChildItem -Path "${{ github.workspace }}\builds" `
+                       -Filter "Calculator.exe" -Recurse |
+                     Select-Object -First 1
+
+          if (-not $exePath) {
+            Write-Error "Calculator.exe not found under ${{ github.workspace }}\builds"
+            exit 1
+          }
+
+          Write-Host "EXE found at: $($exePath.FullName)"
+          echo "EXE_PATH=$($exePath.FullName)" >> $env:GITHUB_ENV
+
+      # --------------------------------------------------------
+      # STEP 6: Close LabVIEW - always runs, even on failure.
+      # Prevents orphaned LabVIEW processes on the runner.
+      # --------------------------------------------------------
+      - name: Close LabVIEW
+        if: always()
+        shell: powershell
+        run: |
+          $cli = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
+          & $cli -OperationName CloseLabVIEW
+          Write-Host "LabVIEW close attempted."
+
+      # --------------------------------------------------------
+      # STEP 7: Upload build log as artifact - always runs.
+      # --------------------------------------------------------
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ steps.version.outputs.tag }}
+          path: ${{ github.workspace }}\logs\build.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      # --------------------------------------------------------
+      # STEP 8: Create GitHub Release and attach Calculator.exe
+      # Only runs if all previous steps succeeded.
+      # --------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Release ${{ steps.version.outputs.tag }}"
+          body: |
+            ## LabVIEW Build - ${{ steps.version.outputs.tag }}
+
+            **Triggered by:** commit to main
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+
+            ### Artifact
+            - Calculator.exe - Built LabVIEW executable
+
+            ### Build Info
+            - Build Spec: Calculator
+            - Project: Calculator.lvproj
+          files: ${{ env.EXE_PATH }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
