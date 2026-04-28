@@ -36,7 +36,7 @@ jobs:
       # STEP 2: Create log output directory
       # ────────────────────────────────────────────────────────
       - name: Create log directory
-        shell: pwsh
+        shell: powershell
         run: |
           $logDir = "${{ github.workspace }}\logs"
           if (-not (Test-Path $logDir)) {
@@ -51,7 +51,7 @@ jobs:
       # -PortNumber is omitted — uses the default port 3363.
       # ────────────────────────────────────────────────────────
       - name: MassCompile LabVIEW VIs
-        shell: pwsh
+        shell: powershell
         run: |
           $cli     = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
           $logFile = "${{ github.workspace }}\logs\masscompile.log"
@@ -87,7 +87,7 @@ jobs:
       # ────────────────────────────────────────────────────────
       - name: Annotate PR with compile errors
         if: failure()
-        shell: pwsh
+        shell: powershell
         run: |
           $logFile = "${{ github.workspace }}\logs\masscompile.log"
 
@@ -118,7 +118,7 @@ jobs:
       # ────────────────────────────────────────────────────────
       - name: Close LabVIEW
         if: always()
-        shell: pwsh
+        shell: powershell
         run: |
           $cli = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
           & $cli -OperationName CloseLabVIEW
