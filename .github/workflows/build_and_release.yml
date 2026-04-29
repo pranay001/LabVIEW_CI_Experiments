@@ -67,7 +67,7 @@ jobs:
         shell: powershell
         run: |
           $cli           = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
-          $projectPath   = "${{ github.workspace }}\Calculator.lvproj"
+          $projectPath   = "${{ github.workspace }}\src\Calculator.lvproj"
           $buildSpecName = "Calculator"
           $logFile       = "${{ github.workspace }}\logs\build.log"
 
