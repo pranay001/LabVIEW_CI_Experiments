@@ -161,7 +161,8 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            # --------------------------------------------------------
+          
+      # --------------------------------------------------------
       # STEP 9: Clean up workspace - always runs.
       # Removes all checked out files and build artifacts from
       # the runner to prevent residue between pipeline runs.
