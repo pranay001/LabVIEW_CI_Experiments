@@ -161,3 +161,16 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            # --------------------------------------------------------
+      # STEP 9: Clean up workspace - always runs.
+      # Removes all checked out files and build artifacts from
+      # the runner to prevent residue between pipeline runs.
+      # --------------------------------------------------------
+      - name: Clean up workspace
+        if: always()
+        shell: powershell
+        run: |
+          Write-Host "Cleaning workspace: ${{ github.workspace }}"
+          Get-ChildItem -Path "${{ github.workspace }}" -Force |
+            Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "Workspace cleaned."
