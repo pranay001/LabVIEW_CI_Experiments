@@ -67,8 +67,8 @@ jobs:
         shell: powershell
         run: |
           $cli           = "C:\Program Files (x86)\National Instruments\Shared\LabVIEW CLI\LabVIEWCLI.exe"
-          $projectPath   = "${{ github.workspace }}\src\Calculator.lvproj"
-          $buildSpecName = "Calculator"
+          $projectPath   = "${{ github.workspace }}\src\LT3451A_Test_System.lvproj"
+          $buildSpecName = "LT3451A_Test_System"
           $logFile       = "${{ github.workspace }}\logs\build.log"
 
           Write-Host "Starting ExecuteBuildSpec..."
@@ -95,17 +95,17 @@ jobs:
           Write-Host "Build completed successfully."
 
       # --------------------------------------------------------
-      # STEP 5: Verify Calculator.exe exists in \builds
+      # STEP 5: Verify LT3451A_Test_System.exe exists in \builds
       # --------------------------------------------------------
       - name: Verify EXE output
         shell: powershell
         run: |
           $exePath = Get-ChildItem -Path "${{ github.workspace }}\builds" `
-                       -Filter "Calculator.exe" -Recurse |
+                       -Filter "LT3451A_Test_System.exe" -Recurse |
                      Select-Object -First 1
 
           if (-not $exePath) {
-            Write-Error "Calculator.exe not found under ${{ github.workspace }}\builds"
+            Write-Error "LT3451A_Test_System.exe not found under ${{ github.workspace }}\builds"
             exit 1
           }
 
@@ -137,7 +137,7 @@ jobs:
           if-no-files-found: warn
 
       # --------------------------------------------------------
-      # STEP 8: Create GitHub Release and attach Calculator.exe
+      # STEP 8: Create GitHub Release and attach LT3451A_Test_System.exe
       # Only runs if all previous steps succeeded.
       # --------------------------------------------------------
       - name: Create GitHub Release
@@ -153,11 +153,11 @@ jobs:
             **Author:** ${{ github.actor }}
 
             ### Artifact
-            - Calculator.exe - Built LabVIEW executable
+            - LT3451A_Test_System.exe - Built LabVIEW executable
 
             ### Build Info
-            - Build Spec: Calculator
-            - Project: Calculator.lvproj
+            - Build Spec: LT3451A_Test_System
+            - Project: LT3451A_Test_System.lvproj
           files: ${{ env.EXE_PATH }}
           draft: false
           prerelease: false
